@@ -4,59 +4,31 @@ import co.unicauca.microkernel.common.entities.Project;
 import co.unicauca.microkernel.common.interfaces.IReportPlugin;
 import co.unicauca.microkernel.plugin.manager.ReportPluginManager;
 
-import java.io.File;
-import java.io.FileWriter;
 import java.util.List;
 
 /**
- * Servicio que orquesta la generación de reportes usando plugins.
+ * Servicio para generar reportes en distintos formatos (HTML, JSON).
+ * Se delega la lógica a los plugins cargados dinámicamente.
  */
 public class ReportService {
 
-    private final ProjectService projectService;
-    private final ReportPluginManager pluginManager;
-
-    public ReportService() {
-        this.projectService = new ProjectService();
-        this.pluginManager = ReportPluginManager.getInstance();
-    }
-
     /**
-     * Genera todos los reportes (ejecuta todos los plugins configurados),
-     * escribe cada reporte en la carpeta 'reports' bajo el basePath si está disponible,
-     * y devuelve el contenido en consola.
+     * Genera un reporte en el formato especificado.
+     *
+     * @param projects lista de proyectos a reportar
+     * @param type     tipo de reporte (ejemplo: "html", "json")
+     * @return reporte en formato String
+     * @throws Exception si no hay plugin disponible o si falla la generación
      */
-    public void generateAllReports() {
-        List<Project> projects = projectService.getAll();
-        List<IReportPlugin> plugins = pluginManager.getReportPlugins();
+    public String generateReport(List<Project> projects, String type) throws Exception {
+        ReportPluginManager manager = ReportPluginManager.getInstance();
+        IReportPlugin plugin = manager.getReportPlugin(type);
 
-        String basePath = pluginManager.getBasePath();
-        String outDir = (basePath != null) ? basePath + "reports" : "reports";
-
-        // Crear carpeta si no existe
-        File dir = new File(outDir);
-        if (!dir.exists()) {
-            dir.mkdirs();
+        if (plugin == null) {
+            throw new Exception("No existe un plugin para el tipo: " + type);
         }
-
-        for (IReportPlugin plugin : plugins) {
-            try {
-                String content = plugin.generateReport(projects);
-
-                // decidir extensión según nombre (convención)
-                String ext = plugin.getName().toLowerCase();
-                String fileName = "report_" + ext + "." + (ext.equals("html") ? "html" : "json");
-                File outFile = new File(dir, fileName);
-
-                try (FileWriter fw = new FileWriter(outFile, false)) {
-                    fw.write(content);
-                }
-
-                System.out.println("Reporte generado por plugin '" + plugin.getName() + "': " + outFile.getAbsolutePath());
-            } catch (Exception ex) {
-                System.err.println("Error generando reporte con plugin " + plugin.getName() + ": " + ex.getMessage());
-            }
-        }
+        return plugin.generateReport(projects);
     }
 }
+
 

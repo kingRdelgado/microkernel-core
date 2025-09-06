@@ -1,51 +1,56 @@
 package co.unicauca.microkernel.app;
 
+import co.unicauca.microkernel.business.ProjectService;
+import co.unicauca.microkernel.business.ReportService;
+import co.unicauca.microkernel.common.entities.Project;
 import co.unicauca.microkernel.plugin.manager.ReportPluginManager;
-import co.unicauca.microkernel.presentation.Console;
 
 import java.io.File;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.List;
 
 public class Application {
 
     public static void main(String[] args) {
-        String basePath = getBaseFilePath();
         try {
-            // Inicializar el manager (lee plugin.properties)
+            // Inicializar gestor de plugins
+            String basePath = getBaseFilePath();
             ReportPluginManager.init(basePath);
 
-            // Iniciar presentación
-            Console console = new Console();
-            console.start();
+            // Obtener proyectos
+            ProjectService projectService = new ProjectService();
+            List<Project> projects = projectService.getAll();
 
-        } catch (Exception ex) {
-            Logger.getLogger(Application.class.getName()).log(Level.SEVERE, "Error ejecutando la app", ex);
+            // Generar reportes
+            ReportService reportService = new ReportService();
+
+            String htmlReport = reportService.generateReport(projects, "html");
+            System.out.println("=== REPORTE HTML ===");
+            System.out.println(htmlReport);
+
+            String jsonReport = reportService.generateReport(projects, "json");
+            System.out.println("=== REPORTE JSON ===");
+            System.out.println(jsonReport);
+
+        } catch (Exception e) {
+            System.err.println("Error ejecutando aplicación: " + e.getMessage());
         }
     }
 
-    /**
-     * Obtiene la ruta base (funciona tanto en IDE como si se empaqueta en jar).
-     */
     private static String getBaseFilePath() {
         try {
             String path = Application.class.getProtectionDomain().getCodeSource().getLocation().getPath();
             path = URLDecoder.decode(path, "UTF-8");
-            File f = new File(path);
-            if (f.isFile()) {
-                String p = f.getParent();
-                if (!p.endsWith(File.separator)) p += File.separator;
-                return p;
-            } else {
-                // Ya es directorio (ej. target/classes)
-                String p = f.getPath();
-                if (!p.endsWith(File.separator)) p += File.separator;
-                return p;
+            File pathFile = new File(path);
+            if (pathFile.isFile()) {
+                path = pathFile.getParent();
+                if (!path.endsWith(File.separator)) {
+                    path += File.separator;
+                }
             }
-        } catch (UnsupportedEncodingException ex) {
-            Logger.getLogger(Application.class.getName()).log(Level.SEVERE, "Error en getBaseFilePath", ex);
+            return path;
+        } catch (UnsupportedEncodingException e) {
             return null;
         }
     }
